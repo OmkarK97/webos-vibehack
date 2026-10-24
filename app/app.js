@@ -447,7 +447,11 @@
     var inputs = (window.TV_APPS && TV_APPS.inputs) || [];
     inputs.forEach(function (inp) { addInputRow(ICON_INPUT, inp.label, inp.appId); });
     if (CONFIG.liveTvApp) {
-      if (inputRows.length) panel.appendChild(Object.assign(document.createElement('div'), { className: 'separator' }));
+      if (inputRows.length) {
+        var sep = document.createElement('div');   // no Object.assign on webOS 3 (Chrome 38)
+        sep.className = 'separator';
+        panel.appendChild(sep);
+      }
       addInputRow(ICON_LIVETV, 'Live TV', CONFIG.liveTvApp);
     }
     if (!inputRows.length) { toast('No inputs found'); return; }
