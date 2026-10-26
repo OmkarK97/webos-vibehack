@@ -9,7 +9,8 @@
 
   var COLUMNS = Math.max(1, CONFIG.columns || 4);
   var TILE_W = 360, TILE_H = 202;
-  var CELL_W = (1920 - 2 * 112) / COLUMNS;
+  var SCREEN_W = window.innerWidth || 1920;   // 1920 on a 16:9 TV, 2560 on a 21:9 ultrawide
+  var CELL_W = (SCREEN_W - 2 * 112) / COLUMNS;
   var ROW_PITCH = 292;
   var DOCK_TOP = 708;           // tile top of the dock row: next row peeks in at the bottom
   var DOCK_GAP = 36;            // extra space below the dock

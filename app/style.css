@@ -9,7 +9,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  width: 1920px;
+  width: 100%;   /* 1920 on a 16:9 TV, wider on an ultrawide: see RESOLUTION in install.sh */
   height: 1080px;
   overflow: hidden;
   background: #000;

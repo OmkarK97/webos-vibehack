@@ -62,6 +62,19 @@ it. Run it again whenever you install or remove apps on the TV.
 With the launcher open, hold a number key on the remote (say **1**) and assign it. From then on,
 holding 1 opens the launcher from anywhere.
 
+**Ultrawide screens**
+
+The launcher renders at 1920×1080 unless told otherwise, which leaves black bars at the sides of a
+21:9 screen. Pass the screen's resolution when you install and the layout stretches to fit:
+
+```bash
+TV_HOST=192.168.1.50 RESOLUTION=2560x1080 ./install.sh
+```
+
+The height stays 1080, so this suits 2560×1080 screens. Raise `columns` in
+[`app/config.js`](app/config.js) (6 fills 2560 wide) so the tiles don't spread out. Without
+`RESOLUTION`, nothing changes.
+
 ## The Home button
 
 webOS hard-wires Home to LG's home, and blocks Developer Mode apps from seeing which app is in front,
