@@ -17,5 +17,10 @@ window.CONFIG = {
   liveTvApp: 'com.webos.app.livetv',
 
   // Tiles per row in the grid; the dock always has this many slots.
-  columns: 4
+  columns: 4,
+
+  // Background: one of Bing's last 8 photos of the day, a different one each time the TV turns on.
+  // Set to false for the plain black background.
+  bingWallpaper: true,
+  bingMarket: 'en-US'
 };

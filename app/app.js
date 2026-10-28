@@ -147,9 +147,23 @@
       el.addEventListener('mouseover', function () {
         if (zone !== 'inputs' && !editing) focusTile(items.indexOf(item));
       });
-      el.addEventListener('click', function () {
-        if (editing) finishEdit(true);
-        else launch(app.id, app.title);
+      // The Magic Remote's pointer clicks: open on release, or hold to start rearranging.
+      el.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        if (editing) { finishEdit(true); return; }
+        focusTile(items.indexOf(item));
+        clearTimeout(mouseTimer);
+        mouseTimer = setTimeout(function () { mouseTimer = null; startEdit(); }, LONG_PRESS_MS);
+      });
+      el.addEventListener('mouseup', function () {
+        if (!mouseTimer) return;
+        clearTimeout(mouseTimer);
+        mouseTimer = null;
+        launch(app.id, app.title);
+      });
+      el.addEventListener('mouseleave', function () {
+        clearTimeout(mouseTimer);
+        mouseTimer = null;
       });
       tilesEl.appendChild(el);
       return item;
@@ -526,21 +540,33 @@
   // ---- keys ----------------------------------------------------------------------------------
 
   var LONG_PRESS_MS = 600;
-  var okDown = false, okTimer = null;
+  var RELEASE_GRACE_MS = 150;   // the Magic Remote repeats a held OK as keyup/keydown pairs
+  var okDown = false, okTimer = null, okReleaseTimer = null, mouseTimer = null;
 
   // On tiles OK acts on release, so a held OK can start rearranging instead of opening the app.
+  // A release only counts once no keydown follows within RELEASE_GRACE_MS.
   document.addEventListener('keyup', function (e) {
-    if (e.keyCode !== KEY.OK) return;
-    okDown = false;
-    if (!okTimer) return;
-    clearTimeout(okTimer);
-    okTimer = null;
-    var it = items[focused];
-    if (zone === 'grid' && it && !editing) launch(it.app.id, it.app.title);
+    if (e.keyCode !== KEY.OK || !okDown) return;
+    clearTimeout(okReleaseTimer);
+    okReleaseTimer = setTimeout(function () {
+      okReleaseTimer = null;
+      okDown = false;
+      if (!okTimer) return;
+      clearTimeout(okTimer);
+      okTimer = null;
+      var it = items[focused];
+      if (zone === 'grid' && it && !editing) launch(it.app.id, it.app.title);
+    }, RELEASE_GRACE_MS);
   });
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
+    if (k === KEY.OK && okReleaseTimer) {   // the release was a repeat: still held
+      clearTimeout(okReleaseTimer);
+      okReleaseTimer = null;
+      e.preventDefault();
+      return;
+    }
     if (k === KEY.OK && okDown) { e.preventDefault(); return; }   // key repeat while held
     if (k === KEY.OK) okDown = true;
     if (editing) {
@@ -586,6 +612,61 @@
     p.addEventListener('click', function () { activatePill(i); });
   });
 
+  // ---- wallpaper -----------------------------------------------------------------------------
+
+  var BING = 'https://www.bing.com';
+  var WALLPAPER_KEY = 'tvhome.wallpaper';
+
+  /** Picks one of Bing's last 8 photos of the day, not the one shown last time. */
+  function changeWallpaper() {
+    if (!CONFIG.bingWallpaper) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', BING + '/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=' +
+      encodeURIComponent(CONFIG.bingMarket || 'en-US'));
+    xhr.timeout = 15000;
+    xhr.onload = function () {
+      var images;
+      try { images = JSON.parse(xhr.responseText).images || []; } catch (e) { return; }
+      var last = null;
+      try { last = localStorage.getItem(WALLPAPER_KEY); } catch (e) { /* no storage: any photo will do */ }
+      var choices = images.filter(function (im) { return im.urlbase && im.urlbase !== last; });
+      if (!choices.length) choices = images;
+      if (!choices.length) return;
+      var pick = choices[Math.floor(Math.random() * choices.length)];
+      showWallpaper(BING + pick.urlbase + '_1920x1080.jpg', pick.copyright || '');
+      try { localStorage.setItem(WALLPAPER_KEY, pick.urlbase); } catch (e) { /* see above */ }
+    };
+    xhr.send();   // offline or blocked: the background stays black
+  }
+
+  /** Fades the new photo in once it has loaded, so the screen never flashes empty. */
+  function showWallpaper(url, credit) {
+    var img = new Image();
+    img.onload = function () {
+      var wp = $('wallpaper'), cr = $('wallpaperCredit');
+      wp.classList.remove('shown');
+      cr.classList.remove('shown');
+      setTimeout(function () {
+        wp.style.backgroundImage = 'url("' + url + '")';
+        cr.textContent = credit;
+        wp.classList.add('shown');
+        if (credit) cr.classList.add('shown');
+      }, wp.style.backgroundImage ? 900 : 0);
+    };
+    img.src = url;
+  }
+
+  /** A new photo every time the TV turns on, when the TV lets the launcher see its power state. */
+  function watchPower() {
+    var wasOn = true;
+    luna('luna://com.webos.service.tvpower/power/getPowerState', { subscribe: true }, function (res) {
+      if (!res.state) return;
+      var on = res.state === 'Active' && !res.processing;
+      if (on && !wasOn) changeWallpaper();
+      wasOn = on;
+    });
+  }
+
   // ---- lifecycle -----------------------------------------------------------------------------
 
   /** Back from another app (or opened again from the shortcut): replay the entrance, keep the tile. */
@@ -606,6 +687,8 @@
   updateClock();
   setInterval(updateClock, 10000);
   watchNetwork();
+  changeWallpaper();
+  watchPower();
   animateIn();
   zone = 'none';
   focusTile(0);
