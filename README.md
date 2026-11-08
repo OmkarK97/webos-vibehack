@@ -134,6 +134,9 @@ For when you do land on it. Names vary a little by webOS version:
   one, which still works.
 - **No pairing prompt on the TV.** Turn on the TV's option for connecting from mobile apps (on the
   C6: Settings → General → Devices → External Devices; named "LG Connect Apps" or similar).
+- **"… has a new certificate".** Usually after a firmware update. `sync-apps.py` and
+  `home-watch.py` pair again: accept the prompt on the TV. `send-text.py` stops, since the text may
+  be a password: run `sync-apps.py` once, then retry. If the TV wasn't updated, don't accept.
 - **`ares` says "All configured authentication methods failed".** The device profile is missing
   its key: run the third command in step 2 again.
 - **Apps stop opening after a while.** Developer Mode sessions expire (LG shows the time left in

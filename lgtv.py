@@ -1,7 +1,8 @@
 """Connection to an LG TV's remote-control service (wss://TV:3001), the one LG's phone app uses.
 
 The first connection shows a prompt on the TV: accept it. The key and the TV's certificate
-fingerprint are kept in .lgtv-key.json.
+fingerprint are kept in .lgtv-key.json; when the certificate changes (new firmware), the TV asks
+again.
 """
 import asyncio
 import hashlib
@@ -44,25 +45,28 @@ def load_keys():
         return {}
 
 
-async def session(host, **connect_args):
+async def session(host, repair=True, **connect_args):
     keys = load_keys()
     ws = await websockets.connect(f"wss://{host}:3001", ssl=insecure_ctx(), open_timeout=10, max_size=None,
                                   **connect_args)
     der = ws.transport.get_extra_info("ssl_object").getpeercert(binary_form=True)
     cert, pin = hashlib.sha256(der).hexdigest(), f"{host} sha256"
-    if keys.get(pin, cert) != cert:
-        await ws.close()
-        sys.exit(f"{host} sent a different certificate than when it was paired. If that is expected "
-                 f"(new firmware), delete {KEY_FILE} and pair again.")
     payload = {
         "forcePairing": False,
         "pairingType": "PROMPT",
         "manifest": {"manifestVersion": 1, "appVersion": "1.1", "permissions": PERMISSIONS},
     }
-    if host in keys:
+    if keys.get(pin, cert) != cert:
+        # A new certificate never gets the stored key: pair again through the TV's prompt, or stop.
+        if not repair:
+            await ws.close()
+            sys.exit(f"{host} has a new certificate. If you expected that (new firmware), run "
+                     "sync-apps.py once to pair again, then retry.")
+        print(f"{host} has a new certificate (new firmware?). Accept the prompt on the TV.", flush=True)
+    elif host in keys:
         payload["client-key"] = keys[host]
     else:
-        print("Accept the prompt on the TV...")
+        print("Accept the prompt on the TV...", flush=True)
     await ws.send(json.dumps({"type": "register", "id": "register_0", "payload": payload}))
     while True:
         msg = json.loads(await asyncio.wait_for(ws.recv(), 60))

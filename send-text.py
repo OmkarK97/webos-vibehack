@@ -40,7 +40,7 @@ async def main(host):
     if not text:
         sys.exit("nothing to send")
 
-    ws = await lgtv.session(host)
+    ws = await lgtv.session(host, repair=False)  # the text may be a password: stop on a new certificate
     try:
         await ws.send(json.dumps({
             "type": "subscribe",
