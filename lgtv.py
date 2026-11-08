@@ -1,8 +1,10 @@
 """Connection to an LG TV's remote-control service (wss://TV:3001), the one LG's phone app uses.
 
-The first connection shows a prompt on the TV: accept it. The key is kept in .lgtv-key.json.
+The first connection shows a prompt on the TV: accept it. The key and the TV's certificate
+fingerprint are kept in .lgtv-key.json.
 """
 import asyncio
+import hashlib
 import json
 import os
 import ssl
@@ -27,7 +29,7 @@ PERMISSIONS = [
 
 
 def insecure_ctx():
-    # The TV uses a certificate from LG's own CA.
+    # The TV uses a certificate from LG's own CA, so session() pins it on first use instead.
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -46,6 +48,12 @@ async def session(host, **connect_args):
     keys = load_keys()
     ws = await websockets.connect(f"wss://{host}:3001", ssl=insecure_ctx(), open_timeout=10, max_size=None,
                                   **connect_args)
+    der = ws.transport.get_extra_info("ssl_object").getpeercert(binary_form=True)
+    cert, pin = hashlib.sha256(der).hexdigest(), f"{host} sha256"
+    if keys.get(pin, cert) != cert:
+        await ws.close()
+        sys.exit(f"{host} sent a different certificate than when it was paired. If that is expected "
+                 f"(new firmware), delete {KEY_FILE} and pair again.")
     payload = {
         "forcePairing": False,
         "pairingType": "PROMPT",
@@ -64,8 +72,8 @@ async def session(host, **connect_args):
             await ws.close()
             sys.exit(f"Pairing failed: {msg.get('error')}")
     key = msg["payload"]["client-key"]
-    if keys.get(host) != key:
-        keys[host] = key
+    if keys.get(host) != key or keys.get(pin) != cert:
+        keys[host], keys[pin] = key, cert
         with open(KEY_FILE, "w") as f:
             json.dump(keys, f, indent=1)
     return ws
