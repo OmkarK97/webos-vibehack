@@ -139,6 +139,7 @@ For when you do land on it. Names vary a little by webOS version:
 | [`home-watch.py`](home-watch.py) | Sends the Home button to the launcher |
 | [`home-watch-mac.sh`](home-watch-mac.sh) | Runs the watcher as a macOS background service |
 | [`lgtv.py`](lgtv.py) | Pairs with and talks to the TV's remote-control service |
+| [`send-text.py`](send-text.py) | Types into the focused field on the TV, for long passwords |
 | [`assets/icon.jpg`](assets/icon.jpg) | The app icon, resized to PNG by `install.sh` |
 
 ## Credits
