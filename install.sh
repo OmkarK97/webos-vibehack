@@ -10,6 +10,8 @@ cd "$(dirname "$0")"
 : "${TV_HOST:?set TV_HOST to the TV IP address, e.g. TV_HOST=192.168.1.50 $0}"
 DEVICE="${DEVICE:-lgtv}"
 APP_ID=com.gathin.tvhome
+command -v ares-package >/dev/null || command -v npx >/dev/null ||
+  { echo "Put Node.js (npx) or LG's webOS CLI on PATH first." >&2; exit 1; }
 
 # LG's webOS CLI: use it from PATH, otherwise fetch it with npx.
 ares() {
@@ -23,8 +25,17 @@ PY="${PY:-python3}"
 
 if [ ! -f app/icon.png ]; then
   # The webOS app list wants PNG icons: 80px and 130px.
-  sips -s format png -z 80 80 assets/icon.jpg --out app/icon.png >/dev/null
-  sips -s format png -z 130 130 assets/icon.jpg --out app/largeIcon.png >/dev/null
+  if command -v sips >/dev/null; then
+    sips -s format png -z 80 80 assets/icon.jpg --out app/icon.png >/dev/null
+    sips -s format png -z 130 130 assets/icon.jpg --out app/largeIcon.png >/dev/null
+  else
+    "$PY" - << 'PY'
+from PIL import Image
+im = Image.open("assets/icon.jpg").convert("RGBA")
+im.resize((80, 80), Image.LANCZOS).save("app/icon.png")
+im.resize((130, 130), Image.LANCZOS).save("app/largeIcon.png")
+PY
+  fi
 fi
 
 rm -rf build && mkdir build

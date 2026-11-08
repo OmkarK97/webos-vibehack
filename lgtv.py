@@ -1,8 +1,11 @@
 """Connection to an LG TV's remote-control service (wss://TV:3001), the one LG's phone app uses.
 
-The first connection shows a prompt on the TV: accept it. The key is kept in .lgtv-key.json.
+The first connection shows a prompt on the TV: accept it. The key and the TV's certificate
+fingerprint are kept in .lgtv-key.json; when the certificate changes (new firmware), the TV asks
+again.
 """
 import asyncio
+import hashlib
 import json
 import os
 import ssl
@@ -27,7 +30,7 @@ PERMISSIONS = [
 
 
 def insecure_ctx():
-    # The TV uses a certificate from LG's own CA.
+    # The TV uses a certificate from LG's own CA, so session() pins it on first use instead.
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -42,19 +45,28 @@ def load_keys():
         return {}
 
 
-async def session(host, **connect_args):
+async def session(host, repair=True, **connect_args):
     keys = load_keys()
     ws = await websockets.connect(f"wss://{host}:3001", ssl=insecure_ctx(), open_timeout=10, max_size=None,
                                   **connect_args)
+    der = ws.transport.get_extra_info("ssl_object").getpeercert(binary_form=True)
+    cert, pin = hashlib.sha256(der).hexdigest(), f"{host} sha256"
     payload = {
         "forcePairing": False,
         "pairingType": "PROMPT",
         "manifest": {"manifestVersion": 1, "appVersion": "1.1", "permissions": PERMISSIONS},
     }
-    if host in keys:
+    if keys.get(pin, cert) != cert:
+        # A new certificate never gets the stored key: pair again through the TV's prompt, or stop.
+        if not repair:
+            await ws.close()
+            sys.exit(f"{host} has a new certificate. If you expected that (new firmware), run "
+                     "sync-apps.py once to pair again, then retry.")
+        print(f"{host} has a new certificate (new firmware?). Accept the prompt on the TV.", flush=True)
+    elif host in keys:
         payload["client-key"] = keys[host]
     else:
-        print("Accept the prompt on the TV...")
+        print("Accept the prompt on the TV...", flush=True)
     await ws.send(json.dumps({"type": "register", "id": "register_0", "payload": payload}))
     while True:
         msg = json.loads(await asyncio.wait_for(ws.recv(), 60))
@@ -64,8 +76,8 @@ async def session(host, **connect_args):
             await ws.close()
             sys.exit(f"Pairing failed: {msg.get('error')}")
     key = msg["payload"]["client-key"]
-    if keys.get(host) != key:
-        keys[host] = key
+    if keys.get(host) != key or keys.get(pin) != cert:
+        keys[host], keys[pin] = key, cert
         with open(KEY_FILE, "w") as f:
             json.dump(keys, f, indent=1)
     return ws

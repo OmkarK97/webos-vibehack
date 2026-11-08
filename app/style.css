@@ -91,6 +91,8 @@ body.scrolled header {
   text-transform: uppercase;
 }
 
+#ampm:empty { display: none; }
+
 .divider {
   width: 2px;
   height: 52px;

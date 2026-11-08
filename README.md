@@ -25,8 +25,9 @@ keep working, and deleting the Developer Mode app removes everything.
 
 ## Setup
 
-You need a Mac on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI, fetched with `npx`)
-and Python 3. The steps are macOS only for now: `install.sh` makes the app icon with `sips`.
+You need a Mac or Linux computer on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI,
+fetched with `npx`) and Python 3. `install.sh` makes the app icon with `sips` on macOS, or with
+Pillow elsewhere.
 
 **1. Developer Mode on the TV**
 
@@ -49,13 +50,20 @@ npx -y -p @webos-tools/cli ares-setup-device -m lgtv -i "{'privatekey':'lgtv_web
 ```bash
 git clone https://github.com/OmkarK97/webos-vibehack.git
 cd webos-vibehack
-python3 -m venv venv && venv/bin/pip install websockets
+python3 -m venv venv && venv/bin/pip install websockets pillow
 TV_HOST=192.168.1.50 ./install.sh
 ```
 
 The first run shows an "allow this device?" prompt on the TV: accept it. That pairing lets
 `sync-apps.py` read your apps and icons. `install.sh` then packages the app, installs it and opens
 it. Run it again whenever you install or remove apps on the TV.
+
+To type a long password into a focused field on the TV, paste it on the computer instead of the
+remote. The text is not printed. Pair once first.
+
+```bash
+TV_HOST=192.168.1.50 ./venv/bin/python send-text.py
+```
 
 **4. A one-press shortcut**
 
@@ -97,8 +105,18 @@ and Settings at the top. The header slides away when the grid scrolls into it.
 saved on the TV.
 
 **Configure** in [`app/config.js`](app/config.js): the starting dock, apps to hide, the Live TV
-app and the number of columns. App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
+app, the number of columns and the clock (24-hour unless `hour12: true`; `timeZone` overrides the
+TV's zone). App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
 Changing `dockApps` resets an order arranged on the TV.
+
+With this home open, the Magic Remote's green button opens Developer Mode so you can press
+Extend. webOS does not let another app renew that session itself. The button does nothing while
+another app is in front.
+
+Set `locale` in [`app/config.js`](app/config.js) to a language code. Strings live in
+[`app/locales/`](app/locales/) (`en.js`, `sv.js`). A new language is a copy of `en.js` with `en` and
+`htmlLang` changed to its code, loaded from [`app/index.html`](app/index.html). Missing keys fall
+back to English.
 
 ## Cleaning up LG's home
 
@@ -116,6 +134,9 @@ For when you do land on it. Names vary a little by webOS version:
   one, which still works.
 - **No pairing prompt on the TV.** Turn on the TV's option for connecting from mobile apps (on the
   C6: Settings → General → Devices → External Devices; named "LG Connect Apps" or similar).
+- **"… has a new certificate".** Usually after a firmware update. `sync-apps.py` and
+  `home-watch.py` pair again: accept the prompt on the TV. `send-text.py` stops, since the text may
+  be a password: run `sync-apps.py` once, then retry. If the TV wasn't updated, don't accept.
 - **`ares` says "All configured authentication methods failed".** The device profile is missing
   its key: run the third command in step 2 again.
 - **Apps stop opening after a while.** Developer Mode sessions expire (LG shows the time left in
@@ -125,12 +146,13 @@ For when you do land on it. Names vary a little by webOS version:
 
 | File | What it does |
 |---|---|
-| [`app/`](app/) | The launcher: `index.html`, `style.css`, `app.js`, `config.js`, `appinfo.json` |
+| [`app/`](app/) | The launcher: `index.html`, `style.css`, `app.js`, `config.js`, `appinfo.json`, [`locales/`](app/locales/) |
 | [`install.sh`](install.sh) | Syncs your apps, packages and installs the launcher, and opens it |
 | [`sync-apps.py`](sync-apps.py) | Reads apps, icons and HDMI inputs from the TV into `app/apps.js` and `app/icons/` |
 | [`home-watch.py`](home-watch.py) | Sends the Home button to the launcher |
 | [`home-watch-mac.sh`](home-watch-mac.sh) | Runs the watcher as a macOS background service |
 | [`lgtv.py`](lgtv.py) | Pairs with and talks to the TV's remote-control service |
+| [`send-text.py`](send-text.py) | Types into the focused field on the TV, for long passwords |
 | [`assets/icon.jpg`](assets/icon.jpg) | The app icon, resized to PNG by `install.sh` |
 
 ## Credits

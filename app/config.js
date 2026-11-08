@@ -17,5 +17,12 @@ window.CONFIG = {
   liveTvApp: 'com.webos.app.livetv',
 
   // Tiles per row in the grid; the dock always has this many slots.
-  columns: 4
+  columns: 4,
+
+  // UI language: a file in app/locales/, loaded from index.html. Defaults to en.
+  // locale: 'sv',
+
+  // IANA zone for the clock. Omit to use the TV's own clock. hour12 defaults to false.
+  // timeZone: 'Europe/Stockholm',
+  // hour12: false
 };
