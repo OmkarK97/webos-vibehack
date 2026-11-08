@@ -1,4 +1,5 @@
-// English. Copy this file to locales/<code>.js and register it in index.html.
+// English. For another language, copy this file to locales/<code>.js, change `en` and htmlLang
+// below to that code, and load the file in index.html.
 window.LOCALES = window.LOCALES || {};
 window.LOCALES.en = {
   htmlLang: 'en',
@@ -17,5 +18,6 @@ window.LOCALES.en = {
   cantOpen: "Can't open {name}",
   editHint: 'Arrows to move  ·  OK to place  ·  Back to cancel',
   devMode: 'Developer Mode',
-  extendHint: 'Opening Developer Mode. Press Extend.'
+  extendHint: 'Opening Developer Mode. Press Extend.',
+  badTimeZone: 'Unknown time zone: {zone}'
 };

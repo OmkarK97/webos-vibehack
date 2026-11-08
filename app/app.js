@@ -406,8 +406,8 @@
 
   // ---- top bar -------------------------------------------------------------------------------
 
+  /** Hour (0-23), minute and date, in CONFIG.timeZone when set. */
   function clockParts() {
-    var hour12 = CONFIG.hour12 === true;
     var days = I18N.days || [];
     var months = I18N.months || [];
     try {
@@ -420,7 +420,7 @@
         month: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hourCycle: hour12 ? 'h12' : 'h23'
+        hourCycle: 'h23'
       };
       if (CONFIG.timeZone) opts.timeZone = CONFIG.timeZone;
       new Intl.DateTimeFormat('en-GB', opts).formatToParts(new Date()).forEach(function (p) {
@@ -428,35 +428,32 @@
       });
       if (raw.hour && raw.minute) {
         return {
-          hour: raw.hour,
+          hour: parseInt(raw.hour, 10),
           minute: raw.minute,
-          dayPeriod: raw.dayPeriod,
           weekday: days[WEEKDAYS[raw.weekday]] || raw.weekday,
-          day: raw.day,
+          day: parseInt(raw.day, 10),
           month: months[parseInt(raw.month, 10) - 1] || raw.month
         };
       }
-    } catch (e) { /* older runtime: fall through to local time */ }
+    } catch (e) { /* older runtime or bad timeZone (reported at startup): use local time */ }
     var now = new Date();
     return {
-      hour: (hour12 ? ((now.getHours() % 12) || 12) : now.getHours()).toString().padStart(2, '0'),
+      hour: now.getHours(),
       minute: now.getMinutes().toString().padStart(2, '0'),
-      dayPeriod: now.getHours() < 12 ? 'am' : 'pm',
       weekday: days[now.getDay()],
-      day: String(now.getDate()),
+      day: now.getDate(),
       month: months[now.getMonth()]
     };
   }
 
   function updateClock() {
-    var parts = clockParts();
-    var h = parseInt(parts.hour, 10);
+    var parts = clockParts(), h = parts.hour, hour12 = CONFIG.hour12 === true;
     var greetings = I18N.greetings || [];
     for (var k = 0; k < greetings.length; k++) {
       if (h < greetings[k][0]) { $('greeting').textContent = greetings[k][1]; break; }
     }
-    $('clock').textContent = parts.hour + ':' + parts.minute;
-    $('ampm').textContent = CONFIG.hour12 === true ? (parts.dayPeriod || '') : '';
+    $('clock').textContent = (hour12 ? (h % 12 || 12) : String(h).padStart(2, '0')) + ':' + parts.minute;
+    $('ampm').textContent = hour12 ? (h < 12 ? 'am' : 'pm') : '';
     $('date').textContent = parts.weekday + '  ' + parts.day + ' ' + parts.month;
   }
 
@@ -581,7 +578,7 @@
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
     // Magic Remote colour keys are only delivered while this app is in front.
-    if (k === KEY.GREEN) {
+    if (k === KEY.GREEN && !editing) {
       e.preventDefault();
       if (e.repeat) return;
       toast(t('extendHint'));
@@ -651,6 +648,10 @@
 
   build();
   updateClock();
+  if (CONFIG.timeZone) {
+    try { new Intl.DateTimeFormat('en-GB', { timeZone: CONFIG.timeZone }); }
+    catch (e) { toast(t('badTimeZone', { zone: CONFIG.timeZone })); }
+  }
   setInterval(updateClock, 10000);
   watchNetwork();
   animateIn();

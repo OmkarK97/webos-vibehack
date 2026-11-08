@@ -17,5 +17,6 @@ window.LOCALES.sv = {
   cantOpen: 'Kan inte öppna {name}',
   editHint: 'Pilar för att flytta  ·  OK för att placera  ·  Tillbaka för att avbryta',
   devMode: 'Utvecklarläge',
-  extendHint: 'Öppnar utvecklarläge. Tryck på Förläng.'
+  extendHint: 'Öppnar utvecklarläge. Tryck på Förläng.',
+  badTimeZone: 'Okänd tidszon: {zone}'
 };
