@@ -57,6 +57,13 @@ The first run shows an "allow this device?" prompt on the TV: accept it. That pa
 `sync-apps.py` read your apps and icons. `install.sh` then packages the app, installs it and opens
 it. Run it again whenever you install or remove apps on the TV.
 
+To type a long password into a focused field on the TV, paste it on the computer instead of the
+remote. The text is not printed. Pair once first.
+
+```bash
+TV_HOST=192.168.1.50 ./venv/bin/python send-text.py
+```
+
 **4. A one-press shortcut**
 
 With the launcher open, hold a number key on the remote (say **1**) and assign it. From then on,
