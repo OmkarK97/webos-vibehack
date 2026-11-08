@@ -25,8 +25,9 @@ keep working, and deleting the Developer Mode app removes everything.
 
 ## Setup
 
-You need a computer on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI, fetched with `npx`)
-and Python 3. `install.sh` makes the app icon with `sips` on macOS, or with Pillow (`pip install pillow`) elsewhere.
+You need a Mac or Linux computer on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI,
+fetched with `npx`) and Python 3. `install.sh` makes the app icon with `sips` on macOS, or with
+Pillow elsewhere.
 
 **1. Developer Mode on the TV**
 
@@ -49,7 +50,7 @@ npx -y -p @webos-tools/cli ares-setup-device -m lgtv -i "{'privatekey':'lgtv_web
 ```bash
 git clone https://github.com/OmkarK97/webos-vibehack.git
 cd webos-vibehack
-python3 -m venv venv && venv/bin/pip install websockets
+python3 -m venv venv && venv/bin/pip install websockets pillow
 TV_HOST=192.168.1.50 ./install.sh
 ```
 
@@ -104,7 +105,8 @@ and Settings at the top. The header slides away when the grid scrolls into it.
 saved on the TV.
 
 **Configure** in [`app/config.js`](app/config.js): the starting dock, apps to hide, the Live TV
-app and the number of columns. App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
+app, the number of columns and the clock (24-hour unless `hour12: true`; `timeZone` overrides the
+TV's zone). App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
 Changing `dockApps` resets an order arranged on the TV.
 
 With this home open, the Magic Remote's green button opens Developer Mode so you can press
@@ -112,8 +114,9 @@ Extend. webOS does not let another app renew that session itself. The button doe
 another app is in front.
 
 Set `locale` in [`app/config.js`](app/config.js) to a language code. Strings live in
-[`app/locales/`](app/locales/) (`en.js`, `sv.js`). A new language is another file there, loaded from
-[`app/index.html`](app/index.html). Missing keys fall back to English.
+[`app/locales/`](app/locales/) (`en.js`, `sv.js`). A new language is a copy of `en.js` with `en` and
+`htmlLang` changed to its code, loaded from [`app/index.html`](app/index.html). Missing keys fall
+back to English.
 
 ## Cleaning up LG's home
 
