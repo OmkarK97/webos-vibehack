@@ -25,8 +25,8 @@ keep working, and deleting the Developer Mode app removes everything.
 
 ## Setup
 
-You need a Mac on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI, fetched with `npx`)
-and Python 3. The steps are macOS only for now: `install.sh` makes the app icon with `sips`.
+You need a computer on the same Wi-Fi as the TV, with Node.js (for LG's `ares` CLI, fetched with `npx`)
+and Python 3. `install.sh` makes the app icon with `sips` on macOS, or with Pillow (`pip install pillow`) elsewhere.
 
 **1. Developer Mode on the TV**
 
@@ -100,6 +100,14 @@ saved on the TV.
 app and the number of columns. App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
 Changing `dockApps` resets an order arranged on the TV.
 
+With this home open, the Magic Remote's green button opens Developer Mode so you can press
+Extend. webOS does not let another app renew that session itself. The button does nothing while
+another app is in front.
+
+Set `locale` in [`app/config.js`](app/config.js) to a language code. Strings live in
+[`app/locales/`](app/locales/) (`en.js`, `sv.js`). A new language is another file there, loaded from
+[`app/index.html`](app/index.html). Missing keys fall back to English.
+
 ## Cleaning up LG's home
 
 For when you do land on it. Names vary a little by webOS version:
@@ -125,7 +133,7 @@ For when you do land on it. Names vary a little by webOS version:
 
 | File | What it does |
 |---|---|
-| [`app/`](app/) | The launcher: `index.html`, `style.css`, `app.js`, `config.js`, `appinfo.json` |
+| [`app/`](app/) | The launcher: `index.html`, `style.css`, `app.js`, `config.js`, `appinfo.json`, [`locales/`](app/locales/) |
 | [`install.sh`](install.sh) | Syncs your apps, packages and installs the launcher, and opens it |
 | [`sync-apps.py`](sync-apps.py) | Reads apps, icons and HDMI inputs from the TV into `app/apps.js` and `app/icons/` |
 | [`home-watch.py`](home-watch.py) | Sends the Home button to the launcher |

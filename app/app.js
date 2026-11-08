@@ -17,12 +17,8 @@
   var GLASS_PAD = 12;           // room for the glass glow around the scaled tile
   var VIEW_TOP = 80, VIEW_BOTTOM = 1060;    // area grid rows scroll into (the header hides below the dock)
 
-  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13, BACK: 461, ESC: 27 };
-
-  var GREETINGS = [[5, 'Good night'], [12, 'Good morning'], [17, 'Good afternoon'], [22, 'Good evening'], [24, 'Good night']];
-  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
-    'October', 'November', 'December'];
+  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, OK: 13, BACK: 461, ESC: 27, GREEN: 404 };
+  var WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
   var ICON_INPUT = 'M18,7V4c0,-1.1 -0.9,-2 -2,-2H8C6.9,2 6,2.9 6,4v3H5v6l3,6v3h8v-3l3,-6V7H18zM8,4h8v3h-2V5h-1v2h-2V5h-1v2H8V4z';
   var ICON_LIVETV = 'M21,6h-7.59l3.29,-3.29L16,2l-4,4l-4,-4l-0.71,0.71L10.59,6H3c-1.1,0 -2,0.89 -2,2v12c0,1.1 0.9,2 2,2h18c1.1,0 2,-0.89 2,-2V8C23,6.89 22.1,6 21,6zM21,20H3V8h18V20zM9,10v8l7,-4L9,10z';
@@ -61,7 +57,7 @@
 
   function launch(id, title, params) {
     luna('luna://com.webos.applicationManager/launch', { id: id, params: params || {} }, function (res) {
-      if (res.returnValue === false) toast("Can't open " + (title || id));
+      if (res.returnValue === false) toast(t('cantOpen', { name: title || id }));
     });
   }
 
@@ -410,33 +406,76 @@
 
   // ---- top bar -------------------------------------------------------------------------------
 
+  function clockParts() {
+    var hour12 = CONFIG.hour12 === true;
+    var days = I18N.days || [];
+    var months = I18N.months || [];
+    try {
+      var raw = {};
+      // en-GB only for numeric parts. Weekday and month names come from the locale file,
+      // because the TV's Intl data may not include every language.
+      var opts = {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: hour12 ? 'h12' : 'h23'
+      };
+      if (CONFIG.timeZone) opts.timeZone = CONFIG.timeZone;
+      new Intl.DateTimeFormat('en-GB', opts).formatToParts(new Date()).forEach(function (p) {
+        if (p.type !== 'literal') raw[p.type] = p.value;
+      });
+      if (raw.hour && raw.minute) {
+        return {
+          hour: raw.hour,
+          minute: raw.minute,
+          dayPeriod: raw.dayPeriod,
+          weekday: days[WEEKDAYS[raw.weekday]] || raw.weekday,
+          day: raw.day,
+          month: months[parseInt(raw.month, 10) - 1] || raw.month
+        };
+      }
+    } catch (e) { /* older runtime: fall through to local time */ }
+    var now = new Date();
+    return {
+      hour: (hour12 ? ((now.getHours() % 12) || 12) : now.getHours()).toString().padStart(2, '0'),
+      minute: now.getMinutes().toString().padStart(2, '0'),
+      dayPeriod: now.getHours() < 12 ? 'am' : 'pm',
+      weekday: days[now.getDay()],
+      day: String(now.getDate()),
+      month: months[now.getMonth()]
+    };
+  }
+
   function updateClock() {
-    var now = new Date(), h = now.getHours();
-    for (var k = 0; k < GREETINGS.length; k++) {
-      if (h < GREETINGS[k][0]) { $('greeting').textContent = GREETINGS[k][1]; break; }
+    var parts = clockParts();
+    var h = parseInt(parts.hour, 10);
+    var greetings = I18N.greetings || [];
+    for (var k = 0; k < greetings.length; k++) {
+      if (h < greetings[k][0]) { $('greeting').textContent = greetings[k][1]; break; }
     }
-    var m = now.getMinutes();
-    $('clock').textContent = ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m;
-    $('ampm').textContent = h < 12 ? 'am' : 'pm';
-    $('date').textContent = DAYS[now.getDay()] + '  ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
+    $('clock').textContent = parts.hour + ':' + parts.minute;
+    $('ampm').textContent = CONFIG.hour12 === true ? (parts.dayPeriod || '') : '';
+    $('date').textContent = parts.weekday + '  ' + parts.day + ' ' + parts.month;
   }
 
   /** Shows the Wi-Fi network name when the TV reports it, otherwise the connection type. */
   function watchNetwork() {
     luna('luna://com.palm.connectionmanager/getStatus', { subscribe: true }, function (res) {
       if (res.returnValue === false && !res.wifi && !res.wired) return;
-      var text = 'Wi-Fi';
-      if (res.wired && res.wired.state === 'connected') text = 'Ethernet';
-      else if (res.wifi && res.wifi.state === 'connected') text = res.wifi.ssid || 'Wi-Fi';
-      else if (res.isInternetConnectionAvailable === false) text = 'Offline';
+      var text = t('wifi');
+      if (res.wired && res.wired.state === 'connected') text = t('ethernet');
+      else if (res.wifi && res.wifi.state === 'connected') text = res.wifi.ssid || t('wifi');
+      else if (res.isInternetConnectionAvailable === false) text = t('offline');
       $('wifiLabel').textContent = text;
     });
   }
 
   function activatePill(i) {
     if (i === 0) showInputs();
-    else if (i === 1) launch('com.palm.app.settings', 'Settings', { target: 'network' });
-    else launch('com.palm.app.settings', 'Settings');
+    else if (i === 1) launch('com.palm.app.settings', t('settings'), { target: 'network' });
+    else launch('com.palm.app.settings', t('settings'));
   }
 
   // ---- inputs dropdown -----------------------------------------------------------------------
@@ -448,9 +487,9 @@
     inputs.forEach(function (inp) { addInputRow(ICON_INPUT, inp.label, inp.appId); });
     if (CONFIG.liveTvApp) {
       if (inputRows.length) panel.appendChild(Object.assign(document.createElement('div'), { className: 'separator' }));
-      addInputRow(ICON_LIVETV, 'Live TV', CONFIG.liveTvApp);
+      addInputRow(ICON_LIVETV, t('liveTv'), CONFIG.liveTvApp);
     }
-    if (!inputRows.length) { toast('No inputs found'); return; }
+    if (!inputRows.length) { toast(t('noInputs')); return; }
 
     // Hang right below the Inputs pill, at least as wide as it.
     var r = pills[0].getBoundingClientRect();
@@ -498,7 +537,7 @@
     editing = { item: it, snapshot: items.slice() };
     it.el.classList.add('moving');
     document.body.classList.add('editing');
-    toast('Arrows to move  ·  OK to place  ·  Back to cancel');
+    toast(t('editHint'));
   }
 
   function moveTo(to) {
@@ -541,6 +580,14 @@
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
+    // Magic Remote colour keys are only delivered while this app is in front.
+    if (k === KEY.GREEN) {
+      e.preventDefault();
+      if (e.repeat) return;
+      toast(t('extendHint'));
+      launch('com.palmdts.devmode', t('devMode'));
+      return;
+    }
     if (k === KEY.OK && okDown) { e.preventDefault(); return; }   // key repeat while held
     if (k === KEY.OK) okDown = true;
     if (editing) {
