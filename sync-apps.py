@@ -9,6 +9,7 @@ webOS does not let a third-party app list installed apps, so the launcher reads 
 Needs: pip install websockets
 """
 import asyncio
+import base64
 import json
 import os
 import sys
@@ -17,6 +18,18 @@ import urllib.request
 import lgtv
 
 APP_DIR = os.path.join(lgtv.HERE, "app")
+
+
+def icon_data_uri(data):
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        mime = "image/png"
+    elif data.startswith(b"\xff\xd8\xff"):
+        mime = "image/jpeg"
+    elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        mime = "image/webp"
+    else:
+        return None
+    return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 async def main(host, list_only):
@@ -46,12 +59,16 @@ async def main(host, list_only):
         except Exception as e:
             print(f"  no icon for {p['id']}: {e}")
             continue
-        with open(os.path.join(icon_dir, name), "wb") as f:
-            f.write(data)
+        # Some webOS builds block canvas reads of images loaded from packaged file URLs.
+        icon = icon_data_uri(data)
+        if icon is None:
+            with open(os.path.join(icon_dir, name), "wb") as f:
+                f.write(data)
+            icon = "icons/" + name
         apps.append({
             "id": p["id"],
             "title": p["title"],
-            "icon": "icons/" + name,
+            "icon": icon,
             "iconColor": p.get("iconColor") or p.get("bgColor") or "",
         })
     out = {
